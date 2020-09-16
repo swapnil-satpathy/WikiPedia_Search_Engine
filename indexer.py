@@ -1,0 +1,258 @@
+import os
+import sys
+import timeit
+import re
+import string
+import nltk
+import xml.sax
+from collections import *
+
+# All the global variables used in the code
+dictionary={}
+pages=0
+files=0
+inverted_index=defaultdict(list)
+offset=0
+
+# All the stopwords are listed below and are taken from list of stopwords in nltk
+stopwords=set(["a", "about", "above", "above", "across", "after", "afterwards", "again", "against",
+ "all", "almost", "alone", "along", "already", "also","although","always","am","among",
+  "amongst", "amoungst", "amount",  "an", "and", "another", "any","anyhow","anyone","anything",
+  "anyway", "anywhere", "are", "around", "as",  "at", "back","be","became", "because","become","becomes", 
+  "becoming", "been", "before", "beforehand", "behind", "being", "below", "beside", "besides", "between", "beyond",
+   "bill", "both", "bottom","but", "by", "call", "can", "cannot", "cant", "co", "con", "could", "couldnt", "cry", "de",
+    "describe", "detail", "do", "done", "down","due", "during", "each", "eg", "eight", "either", "eleven","else", "elsewhere", 
+    "empty", "enough", "etc", "even", "ever", "every", "everyone", "everything", "everywhere", "except", "few", "fifteen", 
+    "fify", "fill", "find", "fire", "first", "five", "for", "former", "formerly", "forty", "found", "four", "from", "front", "full", 
+    "further", "get", "give", "go", "had", "has", "hasnt", "have", "he", "hence", "her", "here", "hereafter", "hereby", "herein", 
+    "hereupon", "hers", "herself", "him", "himself", "his", "how", "however", "hundred", "ie", "if", "in", "inc", "indeed", "interest", 
+    "into", "is", "it", "its", "itself", "keep", "last", "latter", "latterly", "least", "less", "ltd", "made", "many", "may", "me", "meanwhile", 
+    "might", "mill", "mine", "more", "moreover", "most", "mostly", "move", "much", "must", "my", "myself", "name", "namely", "neither",
+     "never", "nevertheless", "next", "nine", "no", "nobody", "none", "noone", "nor", "not", "nothing", "now", "nowhere", "of", "off", "often",
+    "on", "once", "one", "only", "onto", "or", "other", "others", "otherwise", "our", "ours", "ourselves", "out", "over", "own","part", "per", 
+    "perhaps", "please", "put", "rather", "re", "same", "see", "seem", "seemed", "seeming", "seems", "serious", "several", "she", "should", "show",
+    "side", "since", "sincere", "six", "sixty", "so", "some", "somehow", "someone", "something", "sometime", "sometimes", "somewhere", "still", 
+    "such", "system", "take", "ten", "than", "that", "the", "their", "them", "themselves", "then", "thence", "there", "thereafter", "thereby", "therefore", 
+    "therein", "thereupon", "these", "they", "thick", "thin", "third", "this", "those", "though", "three", "through", "throughout", "thru", "thus", "to", 
+    "together", "too", "top", "toward", "towards", "twelve", "twenty", "two", "un", "under", "until", "up", "upon", "us", "very", "via", "was", "we",
+     "well", "were", "what", "whatever", "when", "whence", "whenever", "where", "whereafter", "whereas", "whereby", "wherein", "whereupon", 
+     "wherever", "whether", "which", "while", "whither", "who", "whoever", "whole", "whom", "whose", "why", "will", "with", "within", "without",
+      "would", "yet", "you", "your", "yours", "yourself", "yourselves"])
+
+
+
+# Text Preprocessing Steps
+# **************************************************************************#
+
+
+# I am not using Stemmer for time benefits as using Stemmer was consuming a lot of time.
+#  If you want to use kindly uncomment the below lines
+
+#from nltk.stem.porter import *   
+#ps=PorterStemmer() 
+# Function module to do stemming
+# def stemming(content):
+#     content=[ps.stem(word) for word in content]
+#     return content
+
+
+
+# Function Module to do Tokenization
+# 1) Removing special characters from text
+# 2) Removing URLs from text
+# 3) Removing Html elements from text
+def tokenize(text):
+    text=text.encode("ascii", errors="ignore").decode()
+    # removing special characters
+    text = re.sub(r'[^A-Za-z0-9]+', r' ', text)
+    # removing urls
+    text=re.sub(r'http[^\ ]*\ ', r' ', text) 
+    # removing html entities
+    text = re.sub(r'&nbsp;|&lt;|&gt;|&amp;|&quot;|&apos;', r' ', text) 
+    text=text.split() # Dividing into words
+    return text
+
+# Function module to remove stop-words
+def StopWords_removal(content):
+    content_modified=[]
+    for word in content:
+        if word not in stopwords:
+            content_modified.append(word)
+    return content_modified
+
+#****************************************************************************#
+
+# Function Modules to extract Titles, references,categories,Body,InfoBox and Links
+
+  #  EXTRACTING THE TITLE
+def  extractTitle(title):
+  
+    title=title.lower() #Case Folding for the title
+    title=tokenize(title)
+    title=StopWords_removal(title)
+    # title=stemming(title) # Uncomment it if you want to include stemming in your preprocessing steps
+    return title
+
+# Extracting Body
+def extractBody(text):
+    text=text.lower()
+    temp = re.sub(r'\{\{.*\}\}', r' ', text)
+    body=tokenize(temp)
+    body=StopWords_removal(body)
+    # body=stemming(body)
+    return body
+
+ # EXTRACTING INFO
+def extractInfo(text):
+    text=text.lower()
+    content_splitted=text.split('\n')
+    flag=False
+    info=[]
+   
+    for word in content_splitted:
+        if re.match(r'\{\{infobox', word):
+            temp=re.sub(r'\{\{infobox(.*)', r'\1',word)
+            info.append(temp)
+            flag=True
+        elif flag== True:
+            if word == "}}":
+                flag= False
+                continue
+            info.append(word)
+    info = tokenize(' '.join(info))
+    info = StopWords_removal(info)
+    # info=stemming(info)
+    return info
+
+
+# EXTRACTING REFERENCES
+def extractReferences(text):
+    content_splitted = text.split('\n')
+    references= []
+    for word in content_splitted:
+            if re.search(r'<ref', word):
+                references.append(re.sub(r'.*title[\ ]*=[\ ]*([^\|]*).*', r'\1', word))
+
+    references=tokenize(' '.join(references))
+    references=StopWords_removal(references)
+    # references=stemming(references)
+    return references
+
+
+#EXTRACTING LINKS
+def extractLinks(text):
+    content_splitted = text.split('\n')
+    links = []
+    for word in content_splitted:
+            if re.match(r'\*[\ ]*\[', word):
+                links.append(word)
+        
+    links = tokenize(' '.join(links))
+    links = StopWords_removal(links)
+    # links=stemming(links)
+    return links
+
+ #EXTRACTING CATEGORIES
+def extractCategories(text):
+    content_splitted=text.split('\n')
+    categories = []
+    for word in content_splitted:
+        if re.match(r'\[\[category', word):
+            temp=re.sub(r'\[\[category:(.*)\]\]', r'\1',word)
+            categories.append(temp)
+        
+    categories=tokenize(' '.join(categories))
+    categories=StopWords_removal(categories)
+    # categories=stemming(categories)
+    return categories
+
+#***************************SAX Parser  Module *********************************#
+class SAXHandler( xml.sax.ContentHandler ):
+    flag=0
+    def __init__(self):
+        self.title = ""
+        self.ID = ""
+        self.text = ""
+        self.curr=""
+    
+    # Call when an element starts
+    def startElement(self, tag, attributes):
+        self.curr=tag
+    
+    # Call when a character is read
+    def characters(self, content):
+        if self.curr == "id" and SAXHandler.flag==0:
+            self.ID = content
+            SAXHandler.flag=1
+
+        elif self.curr == "text":
+            self.text =self.text+content
+        elif self.curr=="title":
+            self.title=self.title+content
+
+
+    # Call when an elements ends
+    def endElement(self, tag):
+        if(tag=="page"):
+            dictionary[pages]=self.title.strip().encode("ascii", errors="ignore").decode()
+
+            title=extractTitle(self.title)
+
+            temp_text = self.text.lower() #Case Folding
+            temp_text_split=temp_text.split('==references==')
+            if len(temp_text_split) == 1:
+                temp_text_split=temp_text.split('== references == ')
+
+            categories=[]
+            links=[]
+            references=[]
+            if(len(temp_text_split)>1):
+                categories=extractCategories(temp_text_split[1])
+                links=extractLinks(temp_text_split[1])
+                references=extractReferences(temp_text_split[1])
+
+            body=extractBody(temp_text_split[0])
+            info=extractInfo(temp_text_split[0])
+
+            
+            
+            
+
+            SAXHandler.flag=0
+            self.curr=""
+            self.title = ""
+            self.text = ""
+            self.ID = ""
+
+
+
+
+
+if ( __name__ == "__main__"):
+
+    start = timeit.default_timer()
+    #Using SAX Parser to parse XML data...
+    # create an XMLReader
+    parser = xml.sax.make_parser()
+    # turn off namepsaces
+    parser.setFeature(xml.sax.handler.feature_namespaces, 0)
+
+    # override the default ContextHandler
+    Handler = SAXHandler()
+    parser.setContentHandler( Handler )
+
+    #    parser.parse(sys.argv[1])
+    for file in os.listdir("./Folder"):
+        # print(file)
+        try:
+            parser.parse("./Folder/"+file)
+        except:
+            pass
+    
+    
+    stop = timeit.default_timer()
+    print (stop - start)
+
+
+
+
