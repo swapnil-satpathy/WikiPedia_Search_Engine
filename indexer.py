@@ -271,7 +271,7 @@ def creating_inverted_index(title_dict, body_dict, info_dict, categories_dict,li
     global pages,files,inverted_index,offset,dictionary
     ID=pages
    
-  # posting format is id followed by page number with the delimiters t,b,l,i,rc followed by the frequency of the word
+  # posting format is id followed by page number with the delimiters t,b,l,i,r,c followed by the frequency of the word
     
     for word in words.keys():
         string = 'id'+str(ID)
