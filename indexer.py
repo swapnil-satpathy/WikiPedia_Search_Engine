@@ -166,6 +166,155 @@ def extractCategories(text):
     # categories=stemming(categories)
     return categories
 
+#********************************************************#
+# Writing into file
+def writeIntoFile(inverted_index, files,dictionary,offset):
+    data_offset = []    
+    data = []
+    previous_offset = offset
+    for key in sorted(dictionary):
+        temp = str(key) + ' ' + dictionary[key].strip()
+        size_of_temp=len(temp)
+        if(size_of_temp):
+            previous_offset = 1 + previous_offset + size_of_temp
+        else:
+            previous_offset = 1 + previous_offset
+        data.append(temp)
+        data_offset.append(str(previous_offset))
+    f_name = './files/titleOffset.txt'
+    with open(f_name, 'a') as f:
+        f.write('\n'.join(data_offset))
+        f.write('\n')
+    f_name = './files/title.txt'
+    with open(f_name, 'a') as f:
+        f.write('\n'.join(data))
+        f.write('\n')
+
+    data = []
+    for key in sorted(inverted_index.keys()):
+        postings = inverted_index[key]
+        string = key + ' '
+        string = string + ' '.join(postings)
+        data.append(string)
+    file_name = './files/index' 
+    f_name = file_name + str(files) + '.txt'
+    with open(f_name, 'w') as f:
+        f.write('\n'.join(data))
+    return previous_offset
+
+
+
+
+#********************************************************#
+
+#*****************************************************************#
+# CREATING A DICTIONARY OF KEYS AS TITLE,BODY,INFO etc. TOKENS AND 
+# THEIR FREQUENCIES AS DICTIONARY VALUES
+
+def creating_dictionary(title, body, info, categories,links,references):
+    words=defaultdict(int)
+    title_dict=defaultdict(int)
+    try:
+        for word in title:
+            title_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+    
+    
+    body_dict=defaultdict(int)
+    try:
+        for word in body:
+            body_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+    
+    info_dict=defaultdict(int)
+    try:
+        for word in info:
+            info_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+    
+    categories_dict=defaultdict(int)
+    try:
+        for word in categories:
+            categories_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+
+    links_dict=defaultdict(int)
+    try:
+        for word in links:
+            links_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+    
+    references_dict=defaultdict(int)
+    try:
+        for word in references:
+            references_dict[word]+=1
+            words[word]+=1
+    except:
+        pass
+    
+    
+    return title_dict, body_dict, info_dict, categories_dict,links_dict,references_dict,words
+
+
+
+def creating_inverted_index(title_dict, body_dict, info_dict, categories_dict,links_dict,references_dict,words):
+    global pages,files,inverted_index,offset,dictionary
+    ID=pages
+   
+  # posting format is id followed by page number with the delimiters t,b,l,i,rc followed by the frequency of the word
+    
+    for word in words.keys():
+        string = 'id'+str(ID)
+         # t is the delimiter for titles
+        if title_dict[word]>0:
+            string += 't' + str(title_dict[word])
+            
+
+        
+        # b is the delimiter for body
+        if body_dict[word]>0:
+            string += 'b' + str(body_dict[word])
+            
+        #i is the delimiter for body
+        if info_dict[word]>0:
+            string += 'i' + str(info_dict[word])
+            
+        
+        # c is the delimiter for categories
+        if categories_dict[word]>0:
+            string += 'c' + str(categories_dict[word])
+            
+
+        # l is the delimiter for links
+        if links_dict[word]>0:
+            string += 'l' + str(links_dict[word])
+           
+
+        if references_dict[word]>0:
+            string += 'r' + str(references_dict[word])
+            
+        inverted_index[word].append(string)
+    pages=pages+1
+    #print(pages)
+
+    # This is to ensure that every file will have  20000 pages or less
+    if pages%20000 == 0:
+            offset = writeIntoFile(inverted_index, files,dictionary,offset)
+            inverted_index = defaultdict(list)
+            dictionary = {}
+            files += 1
+
+
 #***************************SAX Parser  Module *********************************#
 class SAXHandler( xml.sax.ContentHandler ):
     flag=0
@@ -213,8 +362,8 @@ class SAXHandler( xml.sax.ContentHandler ):
 
             body=extractBody(temp_text_split[0])
             info=extractInfo(temp_text_split[0])
-
-            
+            title_dict, body_dict, info_dict, categories_dict,links_dict,references_dict,words=creating_dictionary(title, body, info, categories,links,references)
+            creating_inverted_index(title_dict, body_dict, info_dict, categories_dict,links_dict,references_dict,words)
             
             
 
@@ -249,6 +398,12 @@ if ( __name__ == "__main__"):
         except:
             pass
     
+    with open('./files/fileNumbers.txt', 'w') as f:
+        f.write(str(pages))
+    offset = writeIntoFile(inverted_index, files,dictionary,offset)
+    inverted_index = defaultdict(list)
+    dictionary = {}
+    files = files+1
     
     stop = timeit.default_timer()
     print (stop - start)
