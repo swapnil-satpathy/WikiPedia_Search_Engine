@@ -42,7 +42,7 @@ stopwords=set(["a", "about", "above", "above", "across", "after", "afterwards", 
 
 
 # Text Preprocessing Steps
-# **************************************************************************#
+# ********************************************************************************************#
 
 
 # I am not using Stemmer for time benefits as using Stemmer was consuming a lot of time.
@@ -80,7 +80,7 @@ def StopWords_removal(content):
             content_modified.append(word)
     return content_modified
 
-#****************************************************************************#
+#**********************************************************************************************#
 
 # Function Modules to extract Titles, references,categories,Body,InfoBox and Links
 
@@ -166,7 +166,7 @@ def extractCategories(text):
     # categories=stemming(categories)
     return categories
 
-#********************************************************#
+#*************************************************************************************#
 # Writing into file
 def writeIntoFile(inverted_index, files,dictionary,offset):
     data_offset = []    
@@ -182,9 +182,15 @@ def writeIntoFile(inverted_index, files,dictionary,offset):
         data.append(temp)
         data_offset.append(str(previous_offset))
     f_name = './files/titleOffset.txt'
-    with open(f_name, 'a') as f:
-        f.write('\n'.join(data_offset))
-        f.write('\n')
+    try:
+        with open(f_name, 'a') as f:
+            f.write('\n'.join(data_offset))
+            f.write('\n')
+    except:
+        os.mkdir('files')
+        with open(f_name, 'a') as f:
+            f.write('\n'.join(data_offset))
+            f.write('\n')
     f_name = './files/title.txt'
     with open(f_name, 'a') as f:
         f.write('\n'.join(data))
@@ -196,7 +202,7 @@ def writeIntoFile(inverted_index, files,dictionary,offset):
         string = key + ' '
         string = string + ' '.join(postings)
         data.append(string)
-    file_name = './files/index' 
+    file_name = './files/inverted_index' 
     f_name = file_name + str(files) + '.txt'
     with open(f_name, 'w') as f:
         f.write('\n'.join(data))
@@ -205,9 +211,9 @@ def writeIntoFile(inverted_index, files,dictionary,offset):
 
 
 
-#********************************************************#
+#*************************************************************************************#
 
-#*****************************************************************#
+#**************************************************************************************#
 # CREATING A DICTIONARY OF KEYS AS TITLE,BODY,INFO etc. TOKENS AND 
 # THEIR FREQUENCIES AS DICTIONARY VALUES
 
@@ -315,7 +321,7 @@ def creating_inverted_index(title_dict, body_dict, info_dict, categories_dict,li
             files += 1
 
 
-#***************************SAX Parser  Module *********************************#
+#******************************************SAX Parser  Module ********************************************************#
 class SAXHandler( xml.sax.ContentHandler ):
     flag=0
     def __init__(self):
@@ -398,13 +404,18 @@ if ( __name__ == "__main__"):
         except:
             pass
     
-    with open('./files/fileNumbers.txt', 'w') as f:
-        f.write(str(pages))
+    try:
+        with open('./files/fileNumbers.txt', 'w') as f:
+            f.write(str(pages))
+    except:
+        os.mkdir('files')
+        with open('./files/fileNumbers.txt', 'w') as f:
+            f.write(str(pages))
     offset = writeIntoFile(inverted_index, files,dictionary,offset)
     inverted_index = defaultdict(list)
     dictionary = {}
     files = files+1
-    
+
     stop = timeit.default_timer()
     print (stop - start)
 
