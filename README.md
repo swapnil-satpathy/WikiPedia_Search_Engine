@@ -1,6 +1,8 @@
-# We will be using SAX Parser to parse the XML data
+We will be using SAX Parser to parse the XML data
 
-# python3 indexer.py
+# indexer.py
+
+    Running Format --> python3 indexer.py
 
     -> All the XML data you need to parse has to be inside a folder named Folder.
     -> Feed the files into XML parser and then text preprocessing is done:
