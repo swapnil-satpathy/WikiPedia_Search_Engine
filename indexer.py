@@ -170,6 +170,37 @@ def extractCategories(text):
     return categories
 
 #*************************************************************************************#
+
+
+
+
+
+
+
+class writeThread(threading.Thread):
+    def __init__(self, field, data, offset, count):
+        threading.Thread.__init__(self)
+        self.field = field
+        self.offset = offset
+        self.data = data
+        self.count = count
+    def run(self):
+        
+        f_name =  './files/' + self.field + str(self.count) + '.txt'
+        with open(f_name, 'w') as f:
+            f.write('\n'.join(self.data))
+        f_name = './files/supu' +self.field + str(self.count)+ '.txt'
+        with open(f_name, 'w') as f:
+            f.write('\n'.join(self.offset))
+
+
+
+
+
+
+
+
+
 # Writing into file
 def writeIntoFile(inverted_index, files,dictionary,offset):
     data_offset = []    
@@ -210,6 +241,13 @@ def writeIntoFile(inverted_index, files,dictionary,offset):
     with open(f_name, 'w') as f:
         f.write('\n'.join(data))
     return previous_offset
+
+
+
+
+
+
+
 
 
 def finalWrite(data,finalCount,offsetSize):
@@ -253,7 +291,133 @@ def finalWrite(data,finalCount,offsetSize):
             if len(temp)>0 and posting != temp:
                 references[key][documentID] = float(temp)
             
+            
+        string = key+' '+str(finalCount)+' '+str(len(documents))
+        offset.append(str(offsetSize))
+        offsetSize+=len(string)+1
+        distinctWords.append(string)
+    
+
+    titleData=[]
+    titleOffset=[]
+    prevTitle=0
+
+    bodyData = []
+    bodyOffset = []
+    prevBody = 0
+
+    infoData = []
+    infoOffset = []
+    prevInfo = 0
+
+    categoryData = []
+    categoryOffset = []
+    prevCategory = 0
+    
+    linkData = []
+    linkOffset = []
+    prevLink = 0
+
+    referencesData=[]
+    referencesOffset=[]
+    prevReferences=0
+
+    for key in tqdm(sorted(data.keys())):
+        if key in title:
+            docs=title[key]
+            docs=sorted(docs,key= docs.get, reverse= True)
+            string=key+' '
+            for doc in docs:
+                string+=doc+' '+str(title[key][doc])+' '
+            titleData.append(string)
+            titleOffset.append(str(prevTitle) + ' ' + str(len(docs)))
+            prevTitle += len(string) + 1
         
+        if key in body:
+            docs = body[key]
+            docs = sorted(docs, key = docs.get, reverse=True)
+            string = key + ' '
+            for doc in docs:
+                string += doc + ' ' + str(body[key][doc]) + ' '
+            bodyData.append(string)
+            bodyOffset.append(str(prevBody) + ' ' + str(len(docs)))
+            prevBody += len(string) + 1
+        
+        if key in info:
+            docs = info[key]
+            docs = sorted(docs, key = docs.get, reverse=True)
+            string = key + ' '
+            for doc in docs:
+                string += doc + ' ' + str(info[key][doc]) + ' '
+            infoData.append(string)
+            infoOffset.append(str(prevInfo) + ' ' + str(len(docs)))
+            prevInfo += len(string) + 1
+
+        if key in category:
+            docs = category[key]
+            docs = sorted(docs, key = docs.get, reverse=True)
+            string = key + ' '
+            for doc in docs:
+                string += doc + ' ' + str(category[key][doc]) + ' '
+            categoryData.append(string)
+            categoryOffset.append(str(prevCategory) + ' ' + str(len(docs)))
+            prevCategory += len(string) + 1
+        
+
+        if key in link:
+            docs = link[key]
+            docs = sorted(docs, key = docs.get, reverse=True)
+            string = key + ' '
+            for doc in docs:
+                string += doc + ' ' + str(link[key][doc]) + ' '
+            linkData.append(string)
+            linkOffset.append(str(prevLink) + ' ' + str(len(docs)))
+            prevLink = prevLink + len(string) + 1
+        
+
+        if key in references:
+            docs = references[key]
+            docs = sorted(docs, key = docs.get, reverse=True)
+            string = key + ' '
+            for doc in docs:
+                string += doc + ' ' + str(references[key][doc]) + ' '
+
+            referencesData.append(string)
+            referencesOffset.append(str(prevReferences) + ' ' + str(len(docs)))
+            prevReferences += len(string) + 1
+        
+
+    thread=[]
+    thread.append(writeThread('t', titleData, titleOffset, final_count))
+    thread.append(writeThread('b', bodyData, bodyOffset, final_count))
+    thread.append(writeThread('i', infoData, infoOffset, final_count))
+    thread.append(writeThread('c', categoryData, categoryOffset, final_count))
+    thread.append(writeThread('l', linkData, linkOffset, final_count))
+    thread.append(writeThread('r', referencesData, referencesOffset, final_count))
+
+    i=0
+    total=6
+    while(i<total):
+        thread[i].start()
+        i+=1
+    i=0
+    while(i<total):
+        thread[i].join()
+        i+=1
+    file_name = './files/offset.txt' 
+    with open(file_name, 'a') as f:
+        f.write('\n'.join(offset))
+        f.write('\n')
+    file_name = './files/vocab.txt' 
+    with open(file_name, 'a') as f:
+        f.write('\n'.join(distinctWords))
+        f.write('\n')
+    return offsetSize ,finalCount+1
+
+        
+
+
+
 
             
 
