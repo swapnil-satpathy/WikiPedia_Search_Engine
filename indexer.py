@@ -6,6 +6,9 @@ import string
 import nltk
 import xml.sax
 from collections import *
+import heapq
+from tqdm import tqdm
+import threading
 
 # All the global variables used in the code
 dictionary={}
@@ -209,6 +212,55 @@ def writeIntoFile(inverted_index, files,dictionary,offset):
     return previous_offset
 
 
+def finalWrite(data,finalCount,offsetSize):
+    offset=[]
+    title=defaultdict(dict)
+    body=defaultdict(dict)
+    info=defaultdict(dict)
+    category=defaultdict(dict)
+    link=defaultdict(dict)
+    references=defaultdict(dict)
+
+    distinctWords=[]
+
+# tqdm is used to show the progress box. Just there for aesthetic purposes
+    for key in tqdm(sorted(data.keys())):
+        documents=data[key]
+        for i in range(len(documents)):
+            posting=documents[i]
+            documentID = re.sub(r'.*d([0-9]*).*', r'\1', posting)
+            temp = re.sub(r'.*c([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting!=temp:
+                category[key][documentID] = float(temp)
+            
+            temp = re.sub(r'.*i([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting != temp:
+                info[key][documentID] = float(temp)
+            
+            temp = re.sub(r'.*l([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting != temp:
+                link[key][documentID] = float(temp)
+            
+            temp = re.sub(r'.*b([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting != temp:
+                body[key][documentID] = float(temp)
+            
+            temp = re.sub(r'.*t([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting != temp:
+                title[key][documentID] = float(temp)
+            
+            temp = re.sub(r'.*r([0-9]*).*', r'\1', posting)
+            if len(temp)>0 and posting != temp:
+                references[key][documentID] = float(temp)
+            
+        
+
+            
+
+
+
+
+
 
 
 #*************************************************************************************#
@@ -321,6 +373,107 @@ def creating_inverted_index(title_dict, body_dict, info_dict, categories_dict,li
             files += 1
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+#*******************************************************************************************************************#
+ #******************************************Merge Operation***********************************************************#
+
+def merge(files):
+    #This flags list is used to signify if the words in the file have been added into heap
+    flags=[0]*files 
+
+    # Below is the heap array
+    heap=[]
+
+    a_line_of_inverted_index={}
+
+    finalCount=0
+    offsetSize=0
+    file_pointers={}
+    line={}
+    data=defaultdict(list)
+    
+
+    # Pushing all the words in the inverted_indexes of all the files into min-Heap
+    for i in range(files):
+        f_name =  './files/inverted_index' + str(i) + '.txt'
+        file_pointers[i] = open(f_name, 'r')
+        # The first line of the file is now stored in the first_line dictionary
+        line[i]=file_pointers[i].readline().strip()
+        a_line_of_inverted_index[i]=line[i].split()
+
+        # a_line_of_inverted_index[i][0] contains the word and a_line_of_inverted_index[i][1] contains the postings
+        word=a_line_of_inverted_index[i][0]
+
+        if word not in heap:
+            heapq.heappush(heap,word)
+        flags[i]=1
+    
+    
+    count=0
+
+# To check if any line is not read in any file
+    while any(flags) == 1:
+        # Popping the lexicographically smallest word from the heap
+        temp_word=heapq.heappop(heap)
+        count+=1
+
+        # When the count of the words reach 100000 we are writing the data to file
+        if count%100000 == 0:
+            prevFileCount=finalCount
+            offsetSize,finalCount=finalWrite(data,finalCount,offsetSize)
+            if finalCount != prevFileCount:
+                data=defaultdict(list)
+            
+        
+        for i in range(files):
+            if flags[i]:
+                if temp_word == a_line_of_inverted_index[i][0]:
+                    line[i]=file_pointers[i].readline().strip()
+                    data[temp_word].extend(line[i][1:])
+
+                    if line[i]!='':
+                        a_line_of_inverted_index[i]=line[i].split()
+                        if a_line_of_inverted_index[i][0] not in heap:
+                            heapq.heappush(heap,a_line_of_inverted_index[i][0])
+                        else:
+                            flags[i]=0
+                            file_pointers[i].close()
+    
+    offsetSize,finalCount=finalWrite(data,finalCount,offsetSize)
+
+                
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
 #******************************************SAX Parser  Module ********************************************************#
 class SAXHandler( xml.sax.ContentHandler ):
     flag=0
@@ -415,7 +568,7 @@ if ( __name__ == "__main__"):
     inverted_index = defaultdict(list)
     dictionary = {}
     files = files+1
-
+    merge(files)
     stop = timeit.default_timer()
     print (stop - start)
 
